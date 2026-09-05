@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>翻7牌数统计</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@500;600&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+SC:wght@400;500&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html {
+    background: #161F1B;
+    height: 100%;
+    touch-action: manipulation;
+  }
+  body {
+    min-height: 100%;
+    background: #161F1B;
+    display: flex;
+    justify-content: center;
+    padding: 48px 20px;
+    font-family: 'IBM Plex Sans SC', system-ui, sans-serif;
+    color: #EDE6D6;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .board { width: 100%; max-width: 640px; }
+  .header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    border-bottom: 2px solid #C9A227;
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+  }
+  .title {
+    font-family: 'Source Serif 4', serif;
+    font-weight: 600;
+    font-size: 28px;
+    letter-spacing: 0.02em;
+    color: #F3EEE1;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: #7D897F;
+    margin-top: 4px;
+  }
+  .reset-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px solid #4B5A50;
+    color: #B9C4BB;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+  }
+  .reset-btn.confirm {
+    border-color: #A85C4B;
+    color: #F0D9CF;
+    background: rgba(168,92,75,0.15);
+  }
+  .reset-btn:focus-visible { outline: 2px solid #C9A227; outline-offset: 2px; }
+  .reset-icon { font-size: 16px; line-height: 1; }
+  .table-wrap {
+    border: 1px solid #3A473F;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr 0.8fr 0.8fr;
+    align-items: center;
+    border-bottom: 1px solid #3A473F;
+    position: relative;
+  }
+  .row.head { background: #1D2822; }
+  .row.alt { background: #212D27; }
+  .strike-line {
+    position: absolute;
+    left: 0; right: 0; top: 50%;
+    height: 2px;
+    background: #000000;
+    transform: translateY(-50%);
+    pointer-events: none;
+    display: none;
+  }
+  .row.complete .strike-line { display: block; }
+  .cell { padding: 9px 14px; }
+  .name-cell { font-size: 15px; font-weight: 500; color: #EDE6D6; }
+  .count-cell { display: flex; justify-content: center; }
+  .total-cell {
+    text-align: right;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    color: #9CAA9E;
+    padding-right: 20px;
+  }
+  .remaining-cell {
+    text-align: right;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    color: #9CAA9E;
+    padding-right: 16px;
+  }
+  .counter { display: flex; align-items: center; gap: 14px; }
+  .step-btn {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: none;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s ease, background 0.15s ease;
+    color: #161F1B;
+    font-family: inherit;
+    touch-action: manipulation;
+  }
+  .step-btn:active { transform: scale(0.92); }
+  .step-btn:focus-visible { outline: 2px solid #C9A227; outline-offset: 2px; }
+  .minus-btn { background: #A85C4B; }
+  .plus-btn { background: #6B8F71; }
+  .count-value {
+    min-width: 40px;
+    text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 20px;
+    color: #F3EEE1;
+    font-variant-numeric: tabular-nums;
+  }
+  .footnote {
+    margin-top: 20px;
+    font-size: 13px;
+    color: #7D897F;
+    line-height: 1.6;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .step-btn, .reset-btn { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="board">
+    <div class="header">
+      <div>
+        <h1 class="title">翻7牌数统计</h1>
+        <p class="subtitle">Junjun</p>
+      </div>
+      <button class="reset-btn" id="resetBtn" aria-label="重置所有计数为 0">
+        <span class="reset-icon">↻</span>
+        <span id="resetLabel">重置</span>
+      </button>
+    </div>
+
+    <div class="table-wrap" id="tableWrap">
+      <div class="row head">
+        <div class="cell name-cell">名称</div>
+        <div class="cell count-cell">数量</div>
+        <div class="cell remaining-cell">剩余</div>
+        <div class="cell total-cell">总数</div>
+      </div>
+      <!-- 行由 JS 生成 -->
+    </div>
+
+    <p class="footnote">重置只清零当前计数，右侧的总数不会改变。每个人打开此页面看到的计数互不同步。</p>
+  </div>
+
+<script>
+  // ============================================================
+  // 在这里填写候选项和固定总数，改完这一块保存刷新页面就生效
+  // ============================================================
+  const items = [
+    { id: "1", name: "1", total: 1 },
+    { id: "2", name: "2", total: 2 },
+    { id: "3", name: "3", total: 3 },
+    { id: "4", name: "4", total: 4 },
+    { id: "5", name: "5", total: 5 },
+    { id: "6", name: "6", total: 6 },
+    { id: "7", name: "7", total: 7 },
+    { id: "8", name: "8", total: 8 },
+    { id: "9", name: "9", total: 9 },
+    { id: "10", name: "10", total: 10 },
+    { id: "11", name: "11", total: 11 },
+    { id: "12", name: "12", total: 12 },
+    { id: "13", name: "13", total: 13 },
+  ];
+  // ============================================================
+
+  const counts = Object.fromEntries(items.map((it) => [it.id, 0]));
+  const tableWrap = document.getElementById("tableWrap");
+
+  function render() {
+    // 清除旧的数据行（保留表头）
+    tableWrap.querySelectorAll(".row:not(.head)").forEach((r) => r.remove());
+
+    items.forEach((item, idx) => {
+      const isComplete = counts[item.id] === item.total;
+      const row = document.createElement("div");
+      row.className = "row" + (idx % 2 === 1 ? " alt" : "") + (isComplete ? " complete" : "");
+
+      row.innerHTML = `
+        <div class="strike-line"></div>
+        <div class="cell name-cell">${item.name}</div>
+        <div class="cell count-cell">
+          <div class="counter">
+            <button class="step-btn minus-btn" aria-label="${item.name} 减一">−</button>
+            <span class="count-value">${counts[item.id]}</span>
+            <button class="step-btn plus-btn" aria-label="${item.name} 加一">+</button>
+          </div>
+        </div>
+        <div class="cell remaining-cell">${(item.total - counts[item.id]).toLocaleString()}</div>
+        <div class="cell total-cell">${item.total.toLocaleString()}</div>
+      `;
+
+      row.querySelector(".minus-btn").addEventListener("click", () => bump(item.id, -1));
+      row.querySelector(".plus-btn").addEventListener("click", () => bump(item.id, 1));
+
+      tableWrap.appendChild(row);
+    });
+  }
+
+  function bump(id, delta) {
+    counts[id] = Math.max(0, counts[id] + delta);
+    render();
+  }
+
+  // 重置（需要点两次确认）
+  let confirming = false;
+  let confirmTimer = null;
+  const resetBtn = document.getElementById("resetBtn");
+  const resetLabel = document.getElementById("resetLabel");
+
+  resetBtn.addEventListener("click", () => {
+    if (!confirming) {
+      confirming = true;
+      resetBtn.classList.add("confirm");
+      resetLabel.textContent = "再点一次确认";
+      confirmTimer = setTimeout(() => {
+        confirming = false;
+        resetBtn.classList.remove("confirm");
+        resetLabel.textContent = "重置";
+      }, 2800);
+      return;
+    }
+    clearTimeout(confirmTimer);
+    confirming = false;
+    resetBtn.classList.remove("confirm");
+    resetLabel.textContent = "重置";
+    items.forEach((it) => (counts[it.id] = 0));
+    render();
+  });
+
+  render();
+</script>
+</body>
+</html>
